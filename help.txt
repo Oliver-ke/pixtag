@@ -1,0 +1,3 @@
+
+Start Local API
+$ sam local start-api --debug

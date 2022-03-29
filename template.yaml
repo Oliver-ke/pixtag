@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  pixtag
+
+  Image label and tag application
+
+Globals:
+  Function:
+    CodeUri: src
+    Runtime: nodejs14.x
+    Timeout: 300
+    Architectures:
+      - x86_64
+
+Resources:
+  AWSApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: AWS Api Gateway
+      StageName: prod
+
+  TagUpload:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: tag-upload.handleTagUpload
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ResultsTable
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 's3:GetObject'
+              Resource: 'arn:aws:s3:::*'
+            - Effect: Allow
+              Action:
+                - 'rekognition:DetectText'
+                - 'rekognition:DetectLabels'
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - 'dynamodb:GetItem'
+                - 'dynamodb:PutItem'
+                - 'dynamodb:Scan'
+                - 'dynamodb:UpdateItem'
+              Resource:
+                'Fn::Join':
+                  - ''
+                  - - 'arn:aws:dynamodb:'
+                    - Ref: 'AWS::Region'
+                    - ':'
+                    - Ref: 'AWS::AccountId'
+                    - ':table/'
+                    - Ref: ResultsTable
+      Events:
+        BucketEvent1:
+          Type: S3
+          Properties:
+            Bucket:
+              Ref: SourceImageBucket
+            Events:
+              - 's3:ObjectCreated:*'
+    Metadata: 
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints: 
+        - tag-upload.ts
+
+  UploadToS3:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: upload-s3.handleUploadS3
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref SourceImageBucket
+      Policies:
+        - S3WritePolicy:
+            BucketName: !Ref SourceImageBucket
+      Events:
+        UploadToS3API:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AWSApiGateway
+            Path: /upload
+            Method: post
+    Metadata: 
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints: 
+        - upload-s3.ts
+
+  GetUploads:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: get-uploads.handleGetUploads
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ResultsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ResultsTable
+      Events:
+        GetUploadAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AWSApiGateway
+            Path: /uploads
+            Method: get
+    Metadata: 
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints: 
+        - get-uploads.ts
+
+  SourceImageBucket:
+    Type: 'AWS::S3::Bucket'
+
+  ResultsTable:
+    Type: AWS::Serverless::SimpleTable
+
+Outputs:
+  GetUploads:
+    Description: "API Gateway get upload"
+    Value: !Sub "https://${AWSApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/uploads"
+  UploadToS3:
+    Description: "API Gateway upload to s3"
+    Value: !Sub "https://${AWSApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/upload"
