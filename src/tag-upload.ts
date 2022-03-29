@@ -29,7 +29,8 @@ export const handleTagUpload = async (event: S3CreateEvent): Promise<string> => 
     try {
         const labels = await detectLabel(bucket, key);
         const textDetections = await detectText(bucket, key);
-        const savePayload = { image: key, labels, textDetections, id: nanoid() };
+        const image = `https://${bucket}.s3.amazonaws.com/${key}`;
+        const savePayload = { image, labels, textDetections, id: nanoid() };
         const dynamodbPutCommand = new PutCommand({ TableName: tableName, Item: savePayload });
         await ddbDocClient.send(dynamodbPutCommand);
     } catch (err) {

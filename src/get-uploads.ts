@@ -9,10 +9,19 @@ const ddbDocClient = DynamoDBDocumentClient.from(dynamoDbClient);
 export const handleGetUploads = async (_event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const tableName = process.env?.TABLE_NAME || '';
     const comm = new ScanCommand({ TableName: tableName });
-    console.log('Table Name', tableName);
+
     try {
         const res = await ddbDocClient.send(comm);
-        console.log(res);
+        return {
+            statusCode: 200,
+            body: JSON.stringify({
+                message: 'Successful',
+                payload: {
+                    items: res.Items || [],
+                    count: res.Count || 0,
+                },
+            }),
+        };
     } catch (err) {
         console.log(err);
         return {
@@ -22,11 +31,4 @@ export const handleGetUploads = async (_event: APIGatewayProxyEvent): Promise<AP
             }),
         };
     }
-
-    return {
-        statusCode: 200,
-        body: JSON.stringify({
-            message: 'Success Response',
-        }),
-    };
 };
