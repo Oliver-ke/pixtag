@@ -16,3 +16,8 @@ Steps to recreate this project
 - `cd src` and run `npm install`
 - `cd ..` and run `sam build`, this would build the project
 - run `sam deploy guided` and follow the prompt to deploy to the cloud 
+
+Serverless Functions
+`upload-s3.ts`: lambda function connected to an API gateway that handles image to be uploaded to s3
+`tag-upload`: lambda function that gets triggered when an image is completely uploaded to s3, this lambda function handles the actual image label/tagging using AWS Rekognition service and then saving the result to dynamodb for retrieval 
+`get-upload`: return all tag uploads saved on dynamo db through API gateway 
